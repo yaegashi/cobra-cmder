@@ -13,38 +13,30 @@ in the non-invasive and test-friendly way without any global variables or init()
 
 ## Basic usage
 
-Define a sturct (later implements `cmder.Cmder` interface) for each command:
+Define each command's sturct that implements `Cmder` interface:
 
 ```go
 type App struct {
-	Root bool // storage for flag -R
+	Bool bool // storage for flag -b
 }
 type AppAlpha struct {
-	*App         // storage for parent Cmder (embedded)
-	Alpha string // storage for flag -A
+	*App          // storage for parent Cmder (embedded)
+	String string // storage for flag -s
 }
 type AppAlphaOne struct {
 	*AppAlpha     // storage for parent Cmder (embedded)
-	One       int // storage for flag -1
+	Int       int // storage for flag -i
 }
 ```
 
-Associate Cmders by defining methods returning child `Cmder` instances:
+Define each Comder's `Cmd()` method that returns `*cobra.Command`:
 
 ```go
-func (app *App) AppAlpha() cmder.Cmder         { return &AppAlpha{App: app} }
-func (app *AppAlpha) AppAlphaOne() cmder.Cmder { return &AppAlphaOne{AppAlpha: app} }
-```
-
-Define each Comder's Cmd() method returning `*cobra.Command`:
-
-```go
-
 func (app *App) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "app",
 	}
-	cmd.PersistentFlags().BoolVarP(&app.Root, "root", "R", false, "Root flag")
+	cmd.PersistentFlags().BoolVarP(&app.Bool, "bool", "b", false, "Bool flag")
 	return cmd
 }
 
@@ -52,27 +44,37 @@ func (app *AppAlpha) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "alpha",
 	}
-	cmd.PersistentFlags().StringVarP(&app.Alpha, "alpha", "A", "", "Alpha flag")
+	cmd.PersistentFlags().StringVarP(&app.String, "string", "s", "", "String flag")
 	return cmd
 }
 
 func (app *AppAlphaOne) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "one",
-		Run: func(cmd *cobra.Command, args []string) { fmt.Println(app.Root, app.Alpha, app.One) },
+		Run: app.Run,
 	}
-	cmd.Flags().IntVarP(&app.One, "one", "1", 0, "One flag")
+	cmd.Flags().IntVarP(&app.Int, "int", "i", 0, "Int flag")
 	return cmd
+}
+
+func (app *AppAlphaOne) Run(cmd *cobra.Command, args []string) {
+	fmt.Println(app.Bool, app.String, app.Int)
 }
 ```
 
-Call `cmder.Cmd()` to collect and associate all `*cobra.Command` instances:
+Associate Cmders each other by defining a method that returns a child Cmder:
+
+```go
+func (app *App) AppAlphaCmder() cmder.Cmder         { return &AppAlpha{App: app} }
+func (app *AppAlpha) AppAlphaOneCmder() cmder.Cmder { return &AppAlphaOne{AppAlpha: app} }
+```
+
+Call `cmder.Cmd()` to collect and associate all `cobra.Command` instances:
 
 ```go
 func main() {
 	app := &App{}
 	cmd := cmder.Cmd(app)
-	cmd.SetArgs([]string{"alpha", "one", "-R", "-A", "abc", "-1", "123"})
 	err := cmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -80,7 +82,13 @@ func main() {
 }
 ```
 
-Visit https://play.golang.org/p/fXF8z8vMyo8 to see and test the complete source code.
+Visit https://play.golang.org/p/zw4arxJfUkt to see and test the complete source code.
+
+## Unit test
+
+You can easily perform the Go standard unit tests on CLI apps with cobra-cmder.
+
+See https://play.golang.org/p/tijvjDzmwqW for another example.
 
 ## Examples
 
